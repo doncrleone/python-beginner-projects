@@ -1,56 +1,126 @@
-import tkinter
-from time import strftime
-
-# Creating the main application window
-top = tkinter.Tk()
-top.title("Dynamic Clock")  # Updated title
-top.resizable(0, 0)  # Making the window non-resizable
+import tkinter as tk
+from tkinter import ttk, messagebox
+from math import sin, cos, pi
 
 
-# Function to determine the time of day
-def get_time_of_day(hour):
-    if 5 <= hour < 12:
-        return "Morning"
-    elif 12 <= hour < 18:
-        return "Afternoon"
-    else:
-        return "Evening"
+def update_clock():
+    try:
+        # Get the current time in seconds
+        current_time = time_var.get()
+        seconds = current_time % 60
+        minutes = (current_time // 60) % 60
+        hours = (current_time // 3600) % 12
+
+        # Calculate angles for clock hands
+        seconds_angle = 90 - seconds * 6
+        minutes_angle = 90 - minutes * 6 - seconds * 0.1
+        hours_angle = 90 - (hours * 30 + minutes * 0.5)
+
+        # Clear the canvas for redrawing
+        canvas.delete("all")
+
+        # Center and radius for the clock face
+        center_x, center_y = canvas.winfo_width() // 2, canvas.winfo_height() // 2
+        radius = 100
+
+        # Draw clock face
+        canvas.create_oval(center_x - radius, center_y - radius,
+                           center_x + radius, center_y + radius)
+
+        # Draw clock numbers
+        for i in range(1, 13):
+            angle = 90 - i * 30
+            x = center_x + radius * 0.85 * cos(angle * (pi / 180))
+            y = center_y - radius * 0.85 * sin(angle * (pi / 180))
+            canvas.create_text(x, y, text=str(i), font=("Arial", 12, "bold"))
+
+        # Draw clock hands
+        draw_hand(center_x, center_y, seconds_angle, radius * 0.8, 1)  # Second hand
+        draw_hand(center_x, center_y, minutes_angle, radius * 0.7, 2)  # Minute hand
+        draw_hand(center_x, center_y, hours_angle, radius * 0.5, 4)    # Hour hand
+
+        # Update the time
+        time_var.set(current_time + 1)
+
+        # Schedule the next update
+        root.after(1000, update_clock)
+    except Exception as e:
+        print(f"Error in update_clock: {e}")  # Print any errors to help debugging
 
 
-# Function to update the time display
-def update_time():
-    current_time = strftime("%H:%M:%S %p")
-    hour = int(strftime("%H"))
-    time_of_day = get_time_of_day(hour)
-
-    # Update the text of the clockTime Label with the current time and time of day
-    clock_time.config(text=current_time + f"\nGood {time_of_day}!")
-
-    # Dynamically change the background color based on time of day
-    color = (
-        "lightblue"
-        if time_of_day == "Morning"
-        else "lightyellow" if time_of_day == "Afternoon" else "lightcoral"
-    )
-    top.configure(background=color)
-
-    # Schedule the update_time function to be called again after 1000 milliseconds (1 second)
-    clock_time.after(1000, update_time)
+def draw_hand(center_x, center_y, angle, length, width):
+    try:
+        radian_angle = angle * (pi / 180)
+        end_x = center_x + length * cos(radian_angle)
+        end_y = center_y - length * sin(radian_angle)
+        canvas.create_line(center_x, center_y, end_x, end_y, width=width)
+    except Exception as e:
+        print(f"Error in draw_hand: {e}")  # Print any errors to help debugging")
 
 
-# Creating a Label widget to display the time
-clock_time = tkinter.Label(
-    top,
-    font=("courier new", 40),
-    background="black",
-    foreground="white",
-)
+def set_alarm():
+    global alarm_time
+    # Get selected hour and minute
+    alarm_hour = hour_combobox.get()
+    alarm_minute = minute_combobox.get()
 
-# Position the Label widget in the center of the window
-clock_time.pack(anchor="center")
+    if not alarm_hour or not alarm_minute:
+        messagebox.showerror("Invalid Input", "Please select both hour and minute.")
+        return
 
-# Call the update_time function to start updating the time display
-update_time()
+    alarm_time = f"{int(alarm_hour):02}:{int(alarm_minute):02}"
+    messagebox.showinfo("Alarm Set", f"Alarm set for {alarm_time}.")
 
-# Start the Tkinter main event loop
-top.mainloop()
+
+def check_alarm(current_hour, current_minute):
+    global alarm_time
+    if alarm_time:
+        alarm_hour, alarm_minute = map(int, alarm_time.split(":"))
+        if alarm_hour == current_hour and alarm_minute == current_minute:
+            messagebox.showwarning("Alarm!", "Time's up!")
+            alarm_time = None  # Reset the alarm after it triggers
+
+
+# Initialize the main Tkinter window
+root = tk.Tk()
+root.title("Analog Clock with Alarm")
+
+# Create a canvas for drawing the clock
+canvas = tk.Canvas(root, width=400, height=400)
+canvas.pack()
+
+# Alarm input fields with dropdowns
+alarm_label = tk.Label(root, text="Set Alarm:")
+alarm_label.pack()
+
+frame = tk.Frame(root)
+frame.pack()
+
+# Dropdown for selecting hours
+hour_combobox = ttk.Combobox(frame, values=[f"{i:02}" for i in range(12)], width=5)
+hour_combobox.set("10")  # Default to 10 AM
+hour_combobox.pack(side="left")
+
+# Separator (colon)
+separator = tk.Label(frame, text=":")
+separator.pack(side="left")
+
+# Dropdown for selecting minutes
+minute_combobox = ttk.Combobox(frame, values=[f"{i:02}" for i in range(60)], width=5)
+minute_combobox.set("00")  # Default to :00
+minute_combobox.pack(side="left")
+
+# Set alarm button
+set_alarm_button = tk.Button(root, text="Set Alarm", command=set_alarm)
+set_alarm_button.pack()
+
+# Initialize alarm time and time variable
+alarm_time = None
+time_var = tk.IntVar()
+time_var.set(10 * 3600)  # Start the clock at 10:00:00 AM
+
+# Start the clock update
+update_clock()
+
+# Start the Tkinter main loop
+root.mainloop()
